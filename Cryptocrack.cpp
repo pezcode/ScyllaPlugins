@@ -1,7 +1,6 @@
 #define SCYLLA_NO_X64
 
 #include <windows.h>
-#include <cstring>
 #include "Scylla++.h"
 #include "stdint.h"
 
@@ -14,18 +13,32 @@ class ScyllaCryptocrack : public ScyllaPlugin
 
 ULONG_PTR ScyllaCryptocrack::resolveImport(ULONG_PTR ImportTableAddressPointer, ULONG_PTR InvalidApiAddress, ScyllaStatus& Status)
 {
-	const uint8_t OPC_PUSH_DW = 0x68;
-	const uint8_t OPC_ADD_DW_ESP[] = {0x81, 0x04, 0x24};
-	const uint8_t OPC_SUB_DW_ESP[] = {0x81, 0x2C, 0x24};
-	const uint8_t OPC_XOR_DW_ESP[] = {0x81, 0x34, 0x24};
+	const uint8_t PUSH_DW = 0x68;
+	const uint8_t XXX_DW_ESP[] = {0x81, 0x00 /*type*/, 0x24};
+
+	const uint8_t TYPE_ADD = 0x04;
+	const uint8_t TYPE_SUB = 0x2C;
+	const uint8_t TYPE_XOR = 0x34;
+
+	static const uint8_t pattern[] =
+	{
+		PUSH_DW, 1, 1, 1, 1,
+		XXX_DW_ESP[0], 0, XXX_DW_ESP[2], 2, 2, 2, 2
+		//RETN??
+	};
+	static const char mask[] = "X????X?X????";
+
+	const size_t offs_type = 6;
+	const size_t offs_x = 1;
+	const size_t off_y = 8;
 
 	/*
-	 * PUSH X
-	 * ADD/SUB/XOR [ESP], Y
-	 * ; [ESP] = API
-	 */
+	PUSH X
+	ADD/SUB/XOR [ESP], Y
+	; [ESP] = API
+	*/
 
-	if(!validMemory(InvalidApiAddress, sizeof(OPC_PUSH_DW) + sizeof(uint32_t) + sizeof(OPC_ADD_DW_ESP) + sizeof(uint32_t)))
+	if(!validMemory(InvalidApiAddress, sizeof(pattern)))
 	{
 		log("Invalid memory address\r\n");
 		Status = SCYLLA_STATUS_IMPORT_RESOLVING_FAILED;
@@ -34,28 +47,15 @@ ULONG_PTR ScyllaCryptocrack::resolveImport(ULONG_PTR ImportTableAddressPointer, 
 
 	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
 
-	if(*bPtr == OPC_PUSH_DW)
+	if(findPattern(bPtr, sizeof(pattern), pattern, sizeof(pattern), mask))
 	{
-		bPtr++;
-		uint32_t X = *reinterpret_cast<const uint32_t*>(bPtr);
-		bPtr += sizeof(uint32_t);
-		if(!memcmp(bPtr, OPC_ADD_DW_ESP, sizeof(OPC_ADD_DW_ESP)))
+		uint32_t X = *reinterpret_cast<const uint32_t*>(bPtr+offs_x);
+		uint32_t Y = *reinterpret_cast<const uint32_t*>(bPtr+off_y);
+		switch(bPtr[offs_type])
 		{
-			bPtr += sizeof(OPC_ADD_DW_ESP);
-			uint32_t Y = *reinterpret_cast<const uint32_t*>(bPtr);
-			return (X + Y);
-		}
-		else if(!memcmp(bPtr, OPC_SUB_DW_ESP, sizeof(OPC_SUB_DW_ESP)))
-		{
-			bPtr += sizeof(OPC_SUB_DW_ESP);
-			uint32_t Y = *reinterpret_cast<const uint32_t*>(bPtr);
-			return (X - Y);
-		}
-		else if(!memcmp(bPtr, OPC_XOR_DW_ESP, sizeof(OPC_XOR_DW_ESP)))
-		{
-			bPtr += sizeof(OPC_XOR_DW_ESP);
-			uint32_t Y = *reinterpret_cast<const uint32_t*>(bPtr);
-			return (X ^ Y);
+		case TYPE_ADD: return (X + Y);
+		case TYPE_SUB: return (X - Y);
+		case TYPE_XOR: return (X ^ Y);
 		}
 	}
 

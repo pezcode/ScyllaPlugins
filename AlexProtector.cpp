@@ -1,9 +1,10 @@
 #define SCYLLA_NO_X64
 
 #include <windows.h>
-#include <cstring>
 #include "Scylla++.h"
 #include "stdint.h"
+
+// tested
 
 const wchar_t PLUGIN_NAME[] = L"Alex Protector"; // 1.02b
 
@@ -14,11 +15,26 @@ class ScyllaAlexProtector : public ScyllaPlugin
 
 ULONG_PTR ScyllaAlexProtector::resolveImport(ULONG_PTR ImportTableAddressPointer, ULONG_PTR InvalidApiAddress, ScyllaStatus& Status)
 {
-	const uint8_t OPC_JMP_SHRT = 0xEB;
-	const uint8_t OPC_PUSHAD = 0x60;
-	const uint16_t OPC_RDTSC = 0x310F;
-	const uint8_t OPC_PUSH = 0x68;
-	const uint8_t OPC_RETN = 0xC3;
+	const uint8_t JMP_SHRT = 0xEB;
+	const uint8_t PUSHAD = 0x60;
+	const uint8_t RDTSC[] = {0x0F, 0x31};
+	const uint8_t PUSH = 0x68;
+	const uint8_t RETN = 0xC3;
+
+	static const uint8_t pattern[] =
+	{
+		JMP_SHRT, 0x01,
+		0,
+		PUSHAD,
+		RDTSC[0], RDTSC[1],
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		PUSH, 1, 1, 1, 1,
+		0, 0, 0,
+		RETN
+	};
+	static const char mask[] = "XX?XXX?????????????????????????????????????????????X???????X";
+
+	const size_t offs_api = 0x34;
 
 	/*
 	JMP +1
@@ -57,7 +73,7 @@ ULONG_PTR ScyllaAlexProtector::resolveImport(ULONG_PTR ImportTableAddressPointer
 	RETN
 	*/
 
-	if(!validMemory(InvalidApiAddress, 0x34 + sizeof(ULONG_PTR) + 4))
+	if(!validMemory(InvalidApiAddress, sizeof(pattern)))
 	{
 		log("Invalid memory address\r\n");
 		Status = SCYLLA_STATUS_IMPORT_RESOLVING_FAILED;
@@ -66,19 +82,9 @@ ULONG_PTR ScyllaAlexProtector::resolveImport(ULONG_PTR ImportTableAddressPointer
 
 	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
 
-	if(bPtr[0] == OPC_JMP_SHRT && bPtr[1] == 0x01)
+	if(findPattern(bPtr, sizeof(pattern), pattern, sizeof(pattern), mask))
 	{
-		if(bPtr[3] == OPC_PUSHAD)
-		{
-			if(*reinterpret_cast<const uint16_t*>(bPtr+4) == OPC_RDTSC)
-			{
-				bPtr += 0x34 - 1;
-				if(bPtr[0] == OPC_PUSH && bPtr[8] == OPC_RETN)
-				{
-					return *reinterpret_cast<const ULONG_PTR*>(InvalidApiAddress+0x34);
-				}
-			}
-		}
+		return *reinterpret_cast<const uint32_t*>(bPtr+offs_api);
 	}
 
 	log("Unsupported opcode found\r\n");

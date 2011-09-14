@@ -1,103 +1,276 @@
 #define SCYLLA_NO_X64
 
+#define NOMINMAX
+
 #include <windows.h>
-#include <cstring>
+#include <algorithm>
 #include "Scylla++.h"
 #include "stdint.h"
 
-const wchar_t PLUGIN_NAME[] = L"tELock < 0.95"; // 0.51, 0.80, 0.85
+const wchar_t PLUGIN_NAME[] = L"tELock < 0.98"; // 0.51, 0.80, 0.85
 //0.6 - 0.71 crash, repack!
-
-/*
-0.51 - 0.85:
-JMP DWORD [X] ; -> API
-
-0.90/0.92a:
-
-PUSH DWORD [X] ; 0x35FF = FF 35 XXXXXXXXX
-<2-3 bytes junk> ; test xl/xh, yyh
-RETN
-<junk byte if only 2 junk bytes before RETN>
-
-0.95/0.96:
-
-;WTF
-
-code...
-MOV EAX, X
-JMP DWORD [EAX] [+ NOP] ; also PUSH DWORD [EAX] + RETN
-
-0.98:
-
-code...
-MOV EAX, X
-INC EAX
-PUSH DWORD [EAX] ; JMP [EAX] too?
-RETN
-
-0.99:
-
-random instr involving EAX
-mov eax, X
-EB 02 ; 02 ??
-add eax, X
-mov eax, [eax]
-xor eax, Y
-nop
-nop ; ??
-push eax
-retn
-*/
 
 class ScyllaTELock : public ScyllaPlugin
 {
 	virtual ULONG_PTR resolveImport(ULONG_PTR, ULONG_PTR, ScyllaStatus&);
+	ULONG_PTR fixType1(ULONG_PTR InvalidApiAddress);
+	ULONG_PTR fixType2(ULONG_PTR InvalidApiAddress);
+	ULONG_PTR fixType3(ULONG_PTR InvalidApiAddress);
+	ULONG_PTR fixType4(ULONG_PTR InvalidApiAddress);
+	ULONG_PTR fixType5(ULONG_PTR InvalidApiAddress);
 };
+
+//0.51 - 0.85
+ULONG_PTR ScyllaTELock::fixType1(ULONG_PTR InvalidApiAddress)
+{
+	const uint8_t JMP_DW[] = {0xFF, 0x25};
+
+	static const uint8_t pattern[] =
+	{
+		JMP_DW[0], JMP_DW[1], 1, 1, 1, 1
+	};
+	static const char mask[] = "XX????";
+
+	const size_t offs_x = 2;
+
+	/*
+	JMP [X]
+	*/
+
+	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
+
+	if(validMemory(InvalidApiAddress, sizeof(pattern)))
+	{
+		if(findPattern(bPtr, sizeof(pattern), pattern, sizeof(pattern), mask))
+		{
+			uint32_t X = *reinterpret_cast<const uint32_t*>(bPtr+offs_x);
+			if(validMemory(X, sizeof(ULONG_PTR)))
+			{
+				return *reinterpret_cast<const ULONG_PTR*>(X);
+			}
+		}
+	}
+
+	return NULL;
+}
+
+//0.90 - 0.92
+ULONG_PTR ScyllaTELock::fixType2(ULONG_PTR InvalidApiAddress)
+{	
+	const uint8_t PUSH_DW[] = {0xFF, 0x35};
+	const uint8_t RETN = 0x3C;
+
+	static const uint8_t pattern[] =
+	{
+		PUSH_DW[0], PUSH_DW[1], 1, 1, 1, 1,
+		0, 0, 0, 0
+	};
+	static const char mask[] = "XX????????";
+
+	const size_t offs_x = 2;
+	const size_t offs_retn_1 = 8;
+	const size_t offs_retn_2 = 9;
+
+	/*
+	PUSH DWORD [X]
+	<2-3 bytes junk>
+	RETN
+	<1 byte junk if only 2 before RETN>
+	*/
+
+	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
+
+	if(validMemory(InvalidApiAddress, sizeof(pattern)))
+	{
+		if(findPattern(bPtr, sizeof(pattern), pattern, sizeof(pattern), mask))
+		{
+			if(bPtr[offs_retn_1] == RETN || bPtr[offs_retn_2] == RETN)
+			{
+				uint32_t X = *reinterpret_cast<const uint32_t*>(bPtr+offs_x);
+				if(validMemory(X, sizeof(ULONG_PTR)))
+				{
+					return *reinterpret_cast<const ULONG_PTR*>(X);
+				}
+			}
+		}
+	}
+
+	return NULL;
+}
+
+//0.95 - 0.96
+ULONG_PTR ScyllaTELock::fixType3(ULONG_PTR InvalidApiAddress)
+{
+	const uint8_t MOV_EAX = 0xB8;
+	const uint8_t JMP_DW_EAX[] = {0xFF, 0x20};
+	const uint8_t PUSH_DW_EAX[] = {0xFF, 0x30};
+	const uint8_t RETN = 0x3C;
+
+	static const uint8_t pattern_1[] =
+	{
+		MOV_EAX, 1, 1, 1, 1,
+		JMP_DW_EAX[0], JMP_DW_EAX[1]
+	};
+	static const uint8_t pattern_2[] =
+	{
+		MOV_EAX, 1, 1, 1, 1,
+		PUSH_DW_EAX[0], PUSH_DW_EAX[1],
+		RETN
+	};
+
+	static const char mask[] = "X????XXX";
+
+	const size_t offs_x = 1;
+
+	const size_t MAX_BYTES = 35;
+
+	/*
+	<code>
+	MOV EAX, X
+	JMP DWORD [EAX] ; or PUSH DWORD [EAX] + RETN
+	*/
+
+	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
+
+	if(validMemory(InvalidApiAddress, MAX_BYTES + std::max(sizeof(pattern_1), sizeof(pattern_2))))
+	{
+		const uint8_t* found;
+		if((found = findPattern(bPtr, MAX_BYTES + sizeof(pattern_1), pattern_1, sizeof(pattern_1), mask)) ||
+		   (found = findPattern(bPtr, MAX_BYTES + sizeof(pattern_2), pattern_2, sizeof(pattern_2), mask)))
+		{
+			uint32_t X = *reinterpret_cast<const uint32_t*>(found+offs_x);
+			if(validMemory(X, sizeof(ULONG_PTR)))
+			{
+				return *reinterpret_cast<const ULONG_PTR*>(X);
+			}
+		}
+	}
+
+	return NULL;
+}
+
+//0.98
+ULONG_PTR ScyllaTELock::fixType4(ULONG_PTR InvalidApiAddress)
+{
+	const uint8_t MOV_EAX = 0xB8;
+	const uint8_t INC_EAX = 0x40;
+	const uint8_t PUSH_DW_EAX[] = {0xFF, 0x30};
+	const uint8_t RETN = 0x3C;
+
+	static const uint8_t pattern[] =
+	{
+		MOV_EAX, 1, 1, 1, 1,
+		INC_EAX,
+		PUSH_DW_EAX[0], PUSH_DW_EAX[1],
+		RETN
+	};
+
+	static const char mask[] = "X????XXXX";
+
+	const size_t offs_x = 1;
+
+	const size_t MAX_BYTES = 35;
+
+	/*
+	<code>
+	MOV EAX, X
+	INC EAX
+	PUSH DWORD [EAX]
+	RETN
+	*/
+
+	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
+
+	if(validMemory(InvalidApiAddress, MAX_BYTES + sizeof(pattern)))
+	{
+		const uint8_t* found = findPattern(bPtr, MAX_BYTES + sizeof(pattern), pattern, sizeof(pattern), mask);
+		if(found)
+		{
+			uint32_t X = *reinterpret_cast<const uint32_t*>(found+offs_x);
+			X++;
+			if(validMemory(X, sizeof(ULONG_PTR)))
+			{
+				return *reinterpret_cast<const ULONG_PTR*>(X);
+			}
+		}
+	}
+
+	return NULL;
+}
+
+//0.99
+ULONG_PTR ScyllaTELock::fixType5(ULONG_PTR InvalidApiAddress)
+{
+	return NULL;
+
+	const uint8_t MOV_EAX = 0xB8;
+	const uint8_t INC_EAX = 0x40;
+	const uint8_t PUSH_DW_EAX[] = {0xFF, 0x30};
+	const uint8_t RETN = 0x3C;
+
+	static const uint8_t pattern[] =
+	{
+		MOV_EAX, 1, 1, 1, 1,
+		INC_EAX,
+		PUSH_DW_EAX[0], PUSH_DW_EAX[1],
+		RETN
+	};
+
+	static const char mask[] = "X????XXXX";
+
+	const size_t offs_x = 1;
+
+	const size_t MAX_BYTES = 35;
+
+	/*
+	random instr involving EAX
+	mov eax, X
+	EB 02 ; 02 ??
+	add eax, X
+	mov eax, [eax]
+	xor eax, Y
+	nop
+	nop ; ??
+	push eax
+	retn
+	*/
+
+	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
+
+	if(validMemory(InvalidApiAddress, MAX_BYTES + sizeof(pattern)))
+	{
+		const uint8_t* found = findPattern(bPtr, MAX_BYTES + sizeof(pattern), pattern, sizeof(pattern), mask);
+		if(found)
+		{
+			uint32_t X = *reinterpret_cast<const uint32_t*>(found+offs_x);
+			if(validMemory(X, sizeof(ULONG_PTR)))
+			{
+				return *reinterpret_cast<const ULONG_PTR*>(X);
+			}
+		}
+	}
+
+	return NULL;
+}
 
 ULONG_PTR ScyllaTELock::resolveImport(ULONG_PTR ImportTableAddressPointer, ULONG_PTR InvalidApiAddress, ScyllaStatus& Status)
 {
-	const uint16_t OPC_JMP_DW = 0x25FF;
-	const uint16_t OPC_PUSH_DW = 0x35FF;
-	const uint8_t OPC_RETN = 0x3C;
-
-	/*
-	 * JMP [X] ; -> API
-	 */
-
-	if(!validMemory(InvalidApiAddress, sizeof(OPC_JMP_DW) + sizeof(uint32_t)))
+	if(!validMemory(InvalidApiAddress, 1))
 	{
 		log("Invalid memory address\r\n");
 		Status = SCYLLA_STATUS_IMPORT_RESOLVING_FAILED;
 		return NULL;
 	}
 
-	const uint16_t* wPtr = reinterpret_cast<const uint16_t*>(InvalidApiAddress);
+	ULONG_PTR resolved;
 
-	if(*wPtr == OPC_JMP_DW)
+	if((resolved = fixType1(InvalidApiAddress)) ||
+	   (resolved = fixType2(InvalidApiAddress)) ||
+	   (resolved = fixType3(InvalidApiAddress)) ||
+	   (resolved = fixType4(InvalidApiAddress)) ||
+	   (resolved = fixType5(InvalidApiAddress)))
 	{
-		wPtr++;
-		uint32_t offset = *reinterpret_cast<const uint32_t*>(wPtr);
-		if(validMemory(offset, sizeof(ULONG_PTR)))
-		{
-			return *reinterpret_cast<const ULONG_PTR*>(offset);
-		}
-	}
-	else if(*wPtr == OPC_PUSH_DW)
-	{
-		wPtr++;
-		const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(wPtr);
-		bPtr += sizeof(uint32_t);
-		if(validMemory(reinterpret_cast<ULONG_PTR>(bPtr), 3 + sizeof(OPC_RETN)))
-		{
-			if(bPtr[2] == OPC_RETN || bPtr[3] == OPC_RETN)
-			{
-				uint32_t offset = *reinterpret_cast<const uint32_t*>(wPtr);
-				if(validMemory(offset, sizeof(ULONG_PTR)))
-				{
-					return *reinterpret_cast<const ULONG_PTR*>(offset);
-				}
-			}
-		}
+		return resolved;
 	}
 
 	log("Unsupported opcode found\r\n");

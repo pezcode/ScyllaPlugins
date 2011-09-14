@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include <cstring>
+#include <cassert>
 
 #if (defined(_M_X64) || defined(__amd64__))
 	#if defined(SCYLLA_NO_X64)
@@ -27,6 +28,8 @@ public:
 
 	ScyllaPlugin(const wchar_t* logFile = L"logfile_scylla_plugin.txt") : valid_(false), hMapFile_(NULL), lpViewOfFile_(NULL), scyllaExchange(NULL), scyllaImports(NULL)
 	{
+		assert(logFile != NULL);
+
 		initLog(logFile);
 
 		hMapFile_ = OpenFileMappingA(FILE_MAP_ALL_ACCESS, 0, scylla::FILE_MAPPING_NAME);
@@ -85,6 +88,8 @@ public:
 
 	bool log(const char* text)
 	{
+		assert(text != NULL);
+
 		bool success = false;
 		if(logFile_[0])
 		{
@@ -116,6 +121,30 @@ protected:
 		return !IsBadReadPtr(reinterpret_cast<const void*>(addr), size);
 	}
 
+	BYTE* findPattern(const BYTE* buffer, size_t buffer_size, const BYTE* pattern, size_t pattern_size, const char* mask)
+	{
+		assert(pattern_size <= buffer_size);
+		assert(!mask || strlen(mask) >= pattern_size);
+
+		BYTE* found = NULL;
+
+		for(size_t i = 0; i < (buffer_size-pattern_size+1) && !found; i++)
+		{
+			found = const_cast<BYTE*>(buffer+i);
+			for(size_t j = 0; j < pattern_size; j++)
+			{
+				bool ignore = (mask && mask[j] == '?');
+				if(!ignore && pattern[j] != pattern[i+j])
+				{
+					found = 0;
+					break;
+				}
+			}
+		}
+
+		return found;
+	}
+
 	scylla::SCYLLA_EXCHANGE* scyllaExchange;
 	scylla::UNRESOLVED_IMPORT* scyllaImports;
 
@@ -125,6 +154,8 @@ private:
 
 	bool initLog(const wchar_t* file)
 	{
+		assert(file != NULL);
+
 		//get full path of exe
 		if(GetModuleFileNameW(NULL, logFile_, _countof(logFile_)))
 		{

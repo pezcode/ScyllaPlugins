@@ -13,15 +13,24 @@ class ScyllaPEC2 : public ScyllaPlugin
 
 ULONG_PTR ScyllaPEC2::resolveImport(ULONG_PTR ImportTableAddressPointer, ULONG_PTR InvalidApiAddress, ScyllaStatus& Status)
 {
+	const uint8_t MOV_EAX = 0xB8;
+	const uint8_t JMP_EAX[] = {0xFF, 0xE0};
+
+	static const uint8_t pattern[] =
+	{
+		MOV_EAX, 1, 1, 1, 1,
+		JMP_EAX[0], JMP_EAX[1]
+	};
+	static const char mask[] = "X????XX";
+
+	const size_t offs_api = 1;
+
 	/*
-	 * MOV EAX, API
-	 * JMP EAX
-	 */
+	MOV EAX, API
+	JMP EAX
+	*/
 
-	const uint8_t OPC_MOV_EAX = 0xB8;
-	const uint16_t OPC_JMP_EAX = 0xE0FF;
-
-	if(!validMemory(InvalidApiAddress, sizeof(OPC_MOV_EAX) + sizeof(uint32_t) + sizeof(OPC_JMP_EAX)))
+	if(!validMemory(InvalidApiAddress, sizeof(pattern)))
 	{
 		log("Invalid memory address\r\n");
 		Status = SCYLLA_STATUS_IMPORT_RESOLVING_FAILED;
@@ -30,14 +39,9 @@ ULONG_PTR ScyllaPEC2::resolveImport(ULONG_PTR ImportTableAddressPointer, ULONG_P
 
 	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
 
-	if(*bPtr == OPC_MOV_EAX)
+	if(findPattern(bPtr, sizeof(pattern), pattern, sizeof(pattern), mask))
 	{
-		bPtr++;
-		bPtr += sizeof(uint32_t);
-		if(*reinterpret_cast<const uint16_t*>(bPtr) == OPC_JMP_EAX)
-		{
-			return *reinterpret_cast<const uint32_t*>(InvalidApiAddress+1);
-		}
+		return *reinterpret_cast<const uint32_t*>(bPtr+offs_api);
 	}
 
 	log("Unsupported opcode found\r\n");
