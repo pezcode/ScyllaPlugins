@@ -118,23 +118,23 @@ protected:
 
 	bool validMemory(ULONG_PTR addr, size_t size)
 	{
-		return !IsBadReadPtr(reinterpret_cast<const void*>(addr), size);
+		return FALSE == IsBadReadPtr(reinterpret_cast<const void*>(addr), size);
 	}
 
-	BYTE* findPattern(const BYTE* buffer, size_t buffer_size, const BYTE* pattern, size_t pattern_size, const char* mask)
+	const BYTE* findPattern(const BYTE* buffer, size_t buffer_size, const BYTE* pattern, size_t pattern_size, const char* mask)
 	{
 		assert(pattern_size <= buffer_size);
 		assert(!mask || strlen(mask) >= pattern_size);
 
-		BYTE* found = NULL;
+		const BYTE* found = NULL;
 
 		for(size_t i = 0; i < (buffer_size-pattern_size+1) && !found; i++)
 		{
-			found = const_cast<BYTE*>(buffer+i);
+			found = buffer+i;
 			for(size_t j = 0; j < pattern_size; j++)
 			{
 				bool ignore = (mask && mask[j] == '?');
-				if(!ignore && pattern[j] != pattern[i+j])
+				if(!ignore && pattern[j] != found[j])
 				{
 					found = 0;
 					break;
