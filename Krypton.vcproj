@@ -3,7 +3,7 @@
 	ProjectType="Visual C++"
 	Version="9,00"
 	Name="Krypton"
-	ProjectGUID="{D242C6BE-D9F3-4572-A248-76290AEFE3B9}"
+	ProjectGUID="{22291139-02B2-446B-9603-E465D40DC64D}"
 	RootNamespace="ScyllaPlugins"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="196613"

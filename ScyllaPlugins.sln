@@ -30,6 +30,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "diStorm", "diStorm\diStorm.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RLPack_v1", "RLPack_v1.vcproj", "{1C2D9B19-B337-4758-84D9-4F4B2C680202}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Krypton", "Krypton.vcproj", "{22291139-02B2-446B-9603-E465D40DC64D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -88,6 +90,10 @@ Global
 		{1C2D9B19-B337-4758-84D9-4F4B2C680202}.Debug|Win32.Build.0 = Debug|Win32
 		{1C2D9B19-B337-4758-84D9-4F4B2C680202}.Release|Win32.ActiveCfg = Release|Win32
 		{1C2D9B19-B337-4758-84D9-4F4B2C680202}.Release|Win32.Build.0 = Release|Win32
+		{22291139-02B2-446B-9603-E465D40DC64D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{22291139-02B2-446B-9603-E465D40DC64D}.Debug|Win32.Build.0 = Debug|Win32
+		{22291139-02B2-446B-9603-E465D40DC64D}.Release|Win32.ActiveCfg = Release|Win32
+		{22291139-02B2-446B-9603-E465D40DC64D}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

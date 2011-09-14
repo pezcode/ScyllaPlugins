@@ -1,9 +1,10 @@
 #define SCYLLA_NO_X64
 
 #include <windows.h>
-#include <cstring>
 #include "Scylla++.h"
 #include "stdint.h"
+
+// tested
 
 const wchar_t PLUGIN_NAME[] = L"Krypton"; // 0.2, 0.3, 0.5
 
@@ -14,11 +15,30 @@ class ScyllaKrypton : public ScyllaPlugin
 
 ULONG_PTR ScyllaKrypton::resolveImport(ULONG_PTR ImportTableAddressPointer, ULONG_PTR InvalidApiAddress, ScyllaStatus& Status)
 {
-	const uint16_t OPC_ADD_DW = 0x0581;
-	const uint16_t OPC_SUB_DW = 0x2D81;
-	const uint16_t OPC_XOR_DW = 0x3581;
-	const uint8_t OPC_MOV_EAX_DW = 0xA1;
-	const uint16_t OPC_JMP_EAX = 0xE0FF;
+	const uint8_t XXX_DW[] = {0x81, 0 /*type*/};
+	const uint8_t MOV_EAX_DW = 0xA1;
+	const uint8_t JMP_EAX[] = {0xFF, 0xE0};
+
+	const uint8_t TYPE_ADD = 0x05;
+	const uint8_t TYPE_SUB = 0x2D;
+	const uint8_t TYPE_XOR = 0x35;
+
+	static const uint8_t pattern[] =
+	{
+		XXX_DW[0], 0, 1, 1, 1, 1, 2, 2, 2, 2,
+		MOV_EAX_DW, 1, 1, 1, 1,
+		XXX_DW[0], 0, 1, 1, 1, 1, 2, 2, 2, 2,
+		JMP_EAX[0], JMP_EAX[1]
+	};
+	static const char mask[] = "X?????????X????X?????????XX";
+
+	const size_t offs_type_1 = 1;
+	const size_t offs_type_2 = 16;
+	const size_t offs_x_1 = 2;
+	const size_t offs_x_2 = 11;
+	const size_t offs_x_3 = 17;
+	const size_t offs_y_1 = 6;
+	const size_t offs_y_2 = 21;
 
 	/*
 	ADD DWORD [X], Y   ; XOR
@@ -27,9 +47,7 @@ ULONG_PTR ScyllaKrypton::resolveImport(ULONG_PTR ImportTableAddressPointer, ULON
 	JMP EAX
 	*/
 
-	const size_t REDIR_SIZE = 2 * (sizeof(OPC_ADD_DW) + sizeof(uint32_t)) + sizeof(OPC_MOV_EAX_DW) + sizeof(uint32_t) + sizeof(OPC_JMP_EAX);
-
-	if(!validMemory(InvalidApiAddress, REDIR_SIZE))
+	if(!validMemory(InvalidApiAddress, sizeof(pattern)))
 	{
 		log("Invalid memory address\r\n");
 		Status = SCYLLA_STATUS_IMPORT_RESOLVING_FAILED;
@@ -38,16 +56,28 @@ ULONG_PTR ScyllaKrypton::resolveImport(ULONG_PTR ImportTableAddressPointer, ULON
 
 	const uint8_t* bPtr = reinterpret_cast<const uint8_t*>(InvalidApiAddress);
 
-	if(bPtr[0] == OPC_JMP_SHRT && bPtr[1] == 0x01)
+	if(findPattern(bPtr, sizeof(pattern), pattern, sizeof(pattern), mask))
 	{
-		if(bPtr[3] == OPC_PUSHAD)
+		uint32_t X1 = *reinterpret_cast<const uint32_t*>(bPtr+offs_x_1);
+		uint32_t X2 = *reinterpret_cast<const uint32_t*>(bPtr+offs_x_2);
+		uint32_t X3 = *reinterpret_cast<const uint32_t*>(bPtr+offs_x_3);
+
+		uint32_t Y1 = *reinterpret_cast<const uint32_t*>(bPtr+offs_y_1);
+		uint32_t Y2 = *reinterpret_cast<const uint32_t*>(bPtr+offs_y_2);
+
+		if(X1 == X2 && X2 == X3 && Y1 == Y2)
 		{
-			if(*reinterpret_cast<const uint16_t*>(bPtr+4) == OPC_RDTSC)
+			if(validMemory(X1, sizeof(ULONG_PTR)))
 			{
-				bPtr += 0x34 - 1;
-				if(bPtr[0] == OPC_PUSH && bPtr[8] == OPC_RETN)
-				{
-					return *reinterpret_cast<const ULONG_PTR*>(InvalidApiAddress+0x34);
+				ULONG_PTR VAL_X = *reinterpret_cast<const ULONG_PTR*>(X1);
+
+				uint8_t type1 = bPtr[offs_type_1];
+				uint8_t type2 = bPtr[offs_type_2];
+
+				if(type1 == TYPE_ADD && type2 == TYPE_SUB) {
+					return VAL_X + Y1;
+				} else if(type1 == TYPE_XOR && type2 == TYPE_XOR) {
+					return VAL_X ^ Y1;
 				}
 			}
 		}
