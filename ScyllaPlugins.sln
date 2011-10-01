@@ -1,26 +1,23 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PECompact_v2", "PECompact_v2.vcproj", "{1806E808-7B9B-42F2-A8D9-25FA748F3300}"
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PECompact_v2", "PECompact_v2.vcxproj", "{1806E808-7B9B-42F2-A8D9-25FA748F3300}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PESpin_x86_v1", "PESpin_x86_v1.vcproj", "{A04A7B7A-5A68-4947-8942-40500A5E7294}"
-	ProjectSection(ProjectDependencies) = postProject
-		{A4B94DE4-BE0E-4E7D-95E7-7B84E6F117A1} = {A4B94DE4-BE0E-4E7D-95E7-7B84E6F117A1}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PESpin_x86_v1", "PESpin_x86_v1.vcxproj", "{A04A7B7A-5A68-4947-8942-40500A5E7294}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ACProtect_v1", "ACProtect_v1.vcproj", "{BFA073D6-CE7C-48CC-A217-283C95BC2B47}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ACProtect_v1", "ACProtect_v1.vcxproj", "{BFA073D6-CE7C-48CC-A217-283C95BC2B47}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AlexProtector", "AlexProtector.vcproj", "{D242C6BE-D9F3-4572-A248-76290AEFE3B9}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AlexProtector", "AlexProtector.vcxproj", "{D242C6BE-D9F3-4572-A248-76290AEFE3B9}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cryptocrack", "Cryptocrack.vcproj", "{07C2FB15-E166-4F0C-AE94-4BC7D0BD86D9}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cryptocrack", "Cryptocrack.vcxproj", "{07C2FB15-E166-4F0C-AE94-4BC7D0BD86D9}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RLP", "RLP.vcproj", "{55CFA8E6-0869-4D80-A248-4C95849B15B7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RLP", "RLP.vcxproj", "{55CFA8E6-0869-4D80-A248-4C95849B15B7}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tELock", "tELock.vcproj", "{31657521-BDF0-401D-A803-C17C4F8DCB02}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tELock", "tELock.vcxproj", "{31657521-BDF0-401D-A803-C17C4F8DCB02}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "diStorm", "diStorm\diStorm.vcproj", "{A4B94DE4-BE0E-4E7D-95E7-7B84E6F117A1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "diStorm", "diStorm\diStorm.vcxproj", "{A4B94DE4-BE0E-4E7D-95E7-7B84E6F117A1}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Krypton", "Krypton.vcproj", "{22291139-02B2-446B-9603-E465D40DC64D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Krypton", "Krypton.vcxproj", "{22291139-02B2-446B-9603-E465D40DC64D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

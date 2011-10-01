@@ -2,7 +2,9 @@
 
 #include <windows.h>
 #include "Scylla++.h"
-#include "stdint.h"
+#include <cstdint>
+
+// tested
 
 const wchar_t PLUGIN_NAME[] = L"ReversingLabs Protector [RLP]";
 
@@ -15,14 +17,15 @@ ULONG_PTR ScyllaRLP::resolveImport(ULONG_PTR ImportTableAddressPointer, ULONG_PT
 {
 	const uint8_t PUSH_DW = 0x68;
 	const uint8_t ADD_DW_ESP[] = {0x81, 0x04, 0x24};
+	const uint8_t RETN = 0xC3;
 
 	static const uint8_t pattern[] =
 	{
 		PUSH_DW, 1, 1, 1, 1,
-		ADD_DW_ESP[0], ADD_DW_ESP[1], ADD_DW_ESP[2], 2, 2, 2, 2
-		//RETN??
+		ADD_DW_ESP[0], ADD_DW_ESP[1], ADD_DW_ESP[2], 2, 2, 2, 2,
+		RETN
 	};
-	static const char mask[] = "X????XXX????";
+	static const char mask[] = "X????XXX????x";
 
 	const size_t offs_x = 1;
 	const size_t off_y = 8;
@@ -30,7 +33,7 @@ ULONG_PTR ScyllaRLP::resolveImport(ULONG_PTR ImportTableAddressPointer, ULONG_PT
 	/*
 	PUSH X
 	ADD [ESP], Y
-	; [ESP] = API
+	RETN
 	*/
 
 	if(!validMemory(InvalidApiAddress, sizeof(pattern)))

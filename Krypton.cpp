@@ -2,7 +2,7 @@
 
 #include <windows.h>
 #include "Scylla++.h"
-#include "stdint.h"
+#include <cstdint>
 
 // tested
 

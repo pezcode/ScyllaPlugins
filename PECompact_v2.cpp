@@ -2,7 +2,7 @@
 
 #include <windows.h>
 #include "Scylla++.h"
-#include "stdint.h"
+#include <cstdint>
 
 const wchar_t PLUGIN_NAME[] = L"PECompact v2.x";
 

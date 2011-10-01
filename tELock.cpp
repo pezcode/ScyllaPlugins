@@ -5,7 +5,7 @@
 #include <windows.h>
 #include <algorithm>
 #include "Scylla++.h"
-#include "stdint.h"
+#include <cstdint>
 
 // tested
 

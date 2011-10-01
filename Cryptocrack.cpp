@@ -2,7 +2,9 @@
 
 #include <windows.h>
 #include "Scylla++.h"
-#include "stdint.h"
+#include <cstdint>
+
+// tested
 
 const wchar_t PLUGIN_NAME[] = L"Cryptocrack's PE Protector"; // 0.9.3
 
@@ -15,6 +17,7 @@ ULONG_PTR ScyllaCryptocrack::resolveImport(ULONG_PTR ImportTableAddressPointer, 
 {
 	const uint8_t PUSH_DW = 0x68;
 	const uint8_t XXX_DW_ESP[] = {0x81, 0x00 /*type*/, 0x24};
+	const uint8_t RETN = 0xC3;
 
 	const uint8_t TYPE_ADD = 0x04;
 	const uint8_t TYPE_SUB = 0x2C;
@@ -23,10 +26,10 @@ ULONG_PTR ScyllaCryptocrack::resolveImport(ULONG_PTR ImportTableAddressPointer, 
 	static const uint8_t pattern[] =
 	{
 		PUSH_DW, 1, 1, 1, 1,
-		XXX_DW_ESP[0], 0, XXX_DW_ESP[2], 2, 2, 2, 2
-		//RETN??
+		XXX_DW_ESP[0], 0, XXX_DW_ESP[2], 2, 2, 2, 2,
+		RETN
 	};
-	static const char mask[] = "X????X?X????";
+	static const char mask[] = "X????X?X????x";
 
 	const size_t offs_type = 6;
 	const size_t offs_x = 1;
@@ -35,7 +38,7 @@ ULONG_PTR ScyllaCryptocrack::resolveImport(ULONG_PTR ImportTableAddressPointer, 
 	/*
 	PUSH X
 	ADD/SUB/XOR [ESP], Y
-	; [ESP] = API
+	RETN
 	*/
 
 	if(!validMemory(InvalidApiAddress, sizeof(pattern)))
